@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แบบฟอร์มเก็บเงินห้อง (34 คน) - 10 สัปดาห์</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Sarabun', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
+        
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    📊 แบบฟอร์มเก็บเงินห้อง (34 คน)
+                </h1>
+                <p class="text-gray-500 mt-1">บันทึกการจัดเก็บเงินรายสัปดาห์ คำนวณยอดคงเหลืออัตโนมัติ</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <div class="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 flex-1 md:flex-initial">
+                    <i data-lucide="settings" class="text-blue-600 w-5 h-5"></i>
+                    <div class="flex flex-col">
+                        <label class="text-xs text-blue-800 font-semibold">เก็บสัปดาห์ละ (บาท)</label>
+                        <input 
+                            type="number" 
+                            id="feePerWeek" 
+                            value="50" 
+                            oninput="updateCalculations()"
+                            class="bg-transparent border-none outline-none text-lg font-bold text-blue-900 w-24 p-0"
+                            min="0"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Collected Card -->
+            <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
+                <div class="p-4 bg-green-100 text-green-600 rounded-full">
+                    <i data-lucide="wallet" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 font-medium">ยอดเงินที่เก็บได้ทั้งหมด</p>
+                    <p class="text-2xl font-bold text-gray-800" id="totalCollected">฿0</p>
+                </div>
+            </div>
+
+            <!-- Expenses Card -->
+            <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
+                <div class="p-4 bg-red-100 text-red-600 rounded-full">
+                    <i data-lucide="trending-down" class="w-7 h-7"></i>
+                </div>
+                <div class="w-full">
+                    <p class="text-sm text-gray-500 font-medium">ค่าใช้จ่ายห้อง (กรอกเพื่อหักยอด)</p>
+                    <div class="flex items-center text-2xl font-bold text-gray-800">
+                        <span class="mr-1">฿</span>
+                        <input 
+                            type="number" 
+                            id="expenses" 
+                            value="0" 
+                            oninput="updateCalculations()"
+                            placeholder="0"
+                            class="border-b-2 border-red-200 focus:border-red-500 outline-none w-32 pb-1 text-gray-800"
+                            min="0"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Balance Card -->
+            <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
+                <div class="p-4 bg-blue-100 text-blue-600 rounded-full">
+                    <i data-lucide="piggy-bank" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 font-medium">ยอดเงินคงเหลือ</p>
+                    <p class="text-2xl font-bold text-blue-600" id="remainingBalance">฿0</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-xl border border-purple-100 shadow-sm">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                <h2 class="text-lg font-bold text-purple-900 flex items-center gap-2">
+                    <i data-lucide="bot" class="text-purple-600 w-5 h-5"></i> ระบบเขียนข้อความทวงเงิน/สรุปยอดส่งเข้าไลน์ห้อง
+                </h2>
+                <!-- Mode Toggle -->
+                <div class="flex bg-purple-100 p-1 rounded-lg self-start">
+                    <button id="modeTemplateBtn" onclick="switchAiMode('template')" class="px-3 py-1 text-xs font-semibold rounded-md bg-purple-600 text-white transition-all">
+                        โหมดด่วน (ไม่ต้องใช้ API)
+                    </button>
+                    <button id="modeGeminiBtn" onclick="switchAiMode('gemini')" class="px-3 py-1 text-xs font-semibold rounded-md text-purple-800 hover:bg-purple-200 transition-all">
+                        ใช้ Gemini AI (ต้องมีคีย์)
+                    </button>
+                </div>
+            </div>
+
+            <!-- API Key Input (Hidden by default, shown in Gemini Mode) -->
+            <div id="apiConfigBox" class="hidden mb-4 p-4 bg-white rounded-lg border border-purple-200">
+                <label class="block text-xs font-bold text-purple-900 mb-1">ใส่ Gemini API Key ของคุณ:</label>
+                <input type="password" id="apiKey" placeholder="AIzaSy..." class="w-full p-2 border border-purple-200 rounded-md text-sm outline-none focus:border-purple-500">
+                <p class="text-[11px] text-gray-400 mt-1">รับคีย์ฟรีได้จากเว็บบอร์ดผู้พัฒนาของ Google (ข้อมูลเก็บในเครื่องคุณ ปลอดภัย 100%)</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3">
+                <button 
+                    onclick="generateReport()"
+                    class="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                >
+                    <i data-lucide="file-text" class="w-4 h-4"></i> สรุปยอดส่งลงกลุ่ม
+                </button>
+                
+                <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-purple-200 flex-1 md:flex-initial">
+                    <span class="text-xs font-semibold text-purple-800 whitespace-nowrap">โทนอารมณ์:</span>
+                    <select 
+                        id="reminderTone"
+                        class="bg-transparent outline-none text-xs text-gray-700 cursor-pointer"
+                    >
+                        <option value="polite">สุภาพ เป็นทางการ</option>
+                        <option value="cute">น่ารัก อ้อนๆ</option>
+                        <option value="funny">ตลก ขำขัน เสี่ยวๆ</option>
+                        <option value="strict">โหดๆ ดุดัน (นักทวงหนี้)</option>
+                    </select>
+                </div>
+                
+                <button 
+                    onclick="generateReminder()"
+                    class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                >
+                    <i data-lucide="message-square" class="w-4 h-4"></i> สร้างคำทวงเงิน
+                </button>
+            </div>
+
+            <!-- Output Message Area -->
+            <div id="aiResponseBox" class="hidden relative bg-white p-5 rounded-lg border border-purple-200 shadow-inner mt-4">
+                <div id="loadingIndicator" class="hidden flex items-center justify-center text-purple-500 gap-2 py-4">
+                    <i data-lucide="sparkles" class="animate-spin w-5 h-5"></i> <span>ผู้ช่วยอัจฉริยะกำลังร่างข้อความ...</span>
+                </div>
+                <div id="messageTextContainer">
+                    <p id="messageText" class="text-gray-700 whitespace-pre-wrap pr-12 leading-relaxed text-sm"></p>
+                    <button 
+                        onclick="copyMessage()"
+                        class="absolute top-4 right-4 text-gray-400 hover:text-purple-600 transition-colors bg-gray-50 p-2 rounded-md border border-gray-100 hover:bg-purple-50"
+                        title="คัดลอกข้อความ"
+                    >
+                        <i data-lucide="copy" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div class="relative flex-1">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                </span>
+                <input 
+                    type="text" 
+                    id="searchStudent" 
+                    placeholder="ค้นหาตามเลขที่..." 
+                    oninput="filterStudents()"
+                    class="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:bg-white"
+                >
+            </div>
+            
+            <div class="flex gap-2">
+                <button 
+                    onclick="exportToCSV()" 
+                    class="flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 py-2 rounded-lg text-xs font-bold transition-colors"
+                >
+                    <i data-lucide="download" class="w-4 h-4"></i> ออกเป็นไฟล์ Excel/CSV
+                </button>
+                <button 
+                    onclick="clearAllData()" 
+                    class="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-xs font-bold transition-colors"
+                >
+                    <i data-lucide="trash-2" class="w-4 h-4"></i> ล้างตาราง
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-800">ตารางเช็คยอดรายบุคคล</h2>
+                <div class="flex gap-4 text-xs font-bold">
+                    <span class="flex items-center gap-1.5"><div class="w-3.5 h-3.5 bg-emerald-500 rounded"></div> จ่ายแล้ว</span>
+                    <span class="flex items-center gap-1.5"><div class="w-3.5 h-3.5 bg-red-500 rounded"></div> ค้างจ่าย</span>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[900px]">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-xs uppercase border-b border-gray-200">
+                            <th class="p-3 font-semibold text-center sticky left-0 bg-gray-50 z-10 border-r border-gray-200 w-24">เลขที่</th>
+                            <!-- 10 Weeks Columns -->
+                            <script>
+                                for(let w=1; w<=10; w++) {
+                                    document.write(`<th class="p-3 font-semibold text-center border-r border-gray-100">สัปดาห์ ${w}</th>`);
+                                }
+                            </script>
+                            <th class="p-3 font-semibold text-center bg-gray-50 w-32">ยอดรวม/คน</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentTableBody" class="divide-y divide-gray-100">
+                        <!-- Student Rows dynamically injected -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="text-center text-xs text-gray-400 pb-8 space-y-1">
+            <p>💾 ระบบเก็บข้อมูลทั้งหมดไว้ในโทรศัพท์/คอมพิวเตอร์ของคุณอัตโนมัติ (แม้ไม่ได้เชื่อมต่อเน็ต)</p>
+            <p>หากล้างประวัติการท่องเว็บข้อมูลจะหาย แนะนำให้ "ออกเป็นไฟล์ Excel/CSV" เก็บไว้เสมอเมื่อสิ้นสุดสัปดาห์</p>
+        </div>
+
+    </div>
+
+    <script>
+        const numStudents = 34;
+        const numWeeks = 10;
+        let payments = {};
+        let aiMode = 'template'; // 'template' or 'gemini'
+
+        // Load data on start
+        window.onload = function() {
+            lucide.createIcons();
+            
+            // Load saved settings
+            const savedPayments = localStorage.getItem('classFundPayments');
+            const savedFee = localStorage.getItem('classFundFee');
+            const savedExpenses = localStorage.getItem('classFundExpenses');
+            const savedKey = localStorage.getItem('classFundGeminiKey');
+
+            if (savedPayments) payments = JSON.parse(savedPayments);
+            if (savedFee) document.getElementById('feePerWeek').value = savedFee;
+            if (savedExpenses) document.getElementById('expenses').value = savedExpenses;
+            if (savedKey) document.getElementById('apiKey').value = savedKey;
+
+            // Render table
+            renderTable();
+            updateCalculations();
+        };
+
+        // Render Student Table Rows
+        function renderTable() {
+            const tableBody = document.getElementById('studentTableBody');
+            tableBody.innerHTML = '';
+
+            for (let s = 1; s <= numStudents; s++) {
+                let row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50/50 transition-colors student-row';
+                row.setAttribute('data-student-id', s);
+
+                // Student ID Cell (Sticky)
+                let idCell = document.createElement('td');
+                idCell.className = 'p-3 text-center font-bold text-gray-700 sticky left-0 bg-white border-r border-gray-100 shadow-[2px_0_5px_rgba(0,0,0,0.02)]';
+                idCell.innerText = `เลขที่ ${s}`;
+                row.appendChild(idCell);
+
+                // Payment Status Cells for 10 Weeks
+                let studentPaidWeeks = 0;
+                const fee = Number(document.getElementById('feePerWeek').value) || 0;
+
+                for (let w = 1; w <= numWeeks; w++) {
+                    let key = `${s}-${w}`;
+                    let isPaid = payments[key] || false;
+                    if (isPaid) studentPaidWeeks++;
+
+                    let cell = document.createElement('td');
+                    cell.className = 'p-2 text-center border-r border-gray-100';
+
+                    let btn = document.createElement('button');
+                    btn.className = `w-full h-10 rounded-lg flex items-center justify-center transition-all duration-200 shadow-sm border ${
+                        isPaid 
+                            ? 'bg-emerald-500 border-emerald-600 text-white hover:bg-emerald-600' 
+                            : 'bg-red-500 border-red-600 text-white hover:bg-red-600 opacity-90'
+                    }`;
+                    btn.onclick = function() { togglePayment(s, w); };
+                    btn.innerHTML = isPaid 
+                        ? `<i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>` 
+                        : `<i data-lucide="x" class="w-4 h-4 stroke-[3]"></i>`;
+
+                    cell.appendChild(btn);
+                    row.appendChild(cell);
+                }
+
+                // Total/Student Cell
+                let totalCell = document.createElement('td');
+                totalCell.className = 'p-3 text-center font-semibold text-gray-700 bg-gray-50/50 text-sm student-total';
+                totalCell.innerText = `฿${(studentPaidWeeks * fee).toLocaleString()}`;
+                row.appendChild(totalCell);
+
+                tableBody.appendChild(row);
+            }
+            lucide.createIcons();
+        }
+
+        // Toggle Single Payment Status
+        function togglePayment(studentId, weekId) {
+            let key = `${studentId}-${weekId}`;
+            payments[key] = !payments[key];
+            
+            // Save & Sync UI
+            localStorage.setItem('classFundPayments', JSON.stringify(payments));
+            renderTable();
+            updateCalculations();
+        }
+
+        // Calculations Engine
+        function updateCalculations() {
+            const fee = Number(document.getElementById('feePerWeek').value) || 0;
+            const expenses = Number(document.getElementById('expenses').value) || 0;
+
+            // Calculate paid counts
+            let totalPaidWeeks = 0;
+            Object.values(payments).forEach(p => {
+                if (p === true) totalPaidWeeks++;
+            });
+
+            const totalCollected = totalPaidWeeks * fee;
+            const remainingBalance = totalCollected - expenses;
+
+            // Update UI
+            document.getElementById('totalCollected').innerText = `฿${totalCollected.toLocaleString()}`;
+            document.getElementById('remainingBalance').innerText = `฿${remainingBalance.toLocaleString()}`;
+            
+            if (remainingBalance >= 0) {
+                document.getElementById('remainingBalance').className = "text-2xl font-bold text-emerald-600";
+            } else {
+                document.getElementById('remainingBalance').className = "text-2xl font-bold text-red-600";
+            }
+
+            // Save basic config
+            localStorage.setItem('classFundFee', fee);
+            localStorage.setItem('classFundExpenses', expenses);
+        }
+
+        // Search Filter
+        function filterStudents() {
+            let query = document.getElementById('searchStudent').value.trim();
+            let rows = document.getElementsByClassName('student-row');
+
+            for (let i = 0; i < rows.length; i++) {
+                let id = rows[i].getAttribute('data-student-id');
+                if (query === "" || id.includes(query)) {
+                    rows[i].classList.remove('hidden');
+                } else {
+                    rows[i].classList.add('hidden');
+                }
+            }
+        }
+
+        // Clear All Data safely
+        function clearAllData() {
+            if (confirm("🚨 คุณต้องการล้างตารางเก็บเงินและยอดเงินทั้งหมดใช่หรือไม่? ข้อมูลทั้งหมดจะถูกรีเซ็ต!")) {
+                payments = {};
+                document.getElementById('expenses').value = 0;
+                localStorage.removeItem('classFundPayments');
+                localStorage.removeItem('classFundExpenses');
+                renderTable();
+                updateCalculations();
+            }
+        }
+
+        // Export data to CSV (Can be opened in MS Excel / Google Sheets)
+        function exportToCSV() {
+            const fee = Number(document.getElementById('feePerWeek').value) || 0;
+            let csvContent = "\uFEFF"; // Add UTF-8 BOM for Thai Language in Excel
+            
+            // Header
+            csvContent += "เลขที่,";
+            for(let w=1; w<=numWeeks; w++) {
+                csvContent += `สัปดาห์ที่ ${w},`;
+            }
+            csvContent += "รวมจ่ายรายคน (บาท)\n";
+
+            // Rows
+            for (let s = 1; s <= numStudents; s++) {
+                csvContent += `เลขที่ ${s},`;
+                let totalPaid = 0;
+                for (let w = 1; w <= numWeeks; w++) {
+                    let isPaid = payments[`${s}-${w}`] || false;
+                    csvContent += isPaid ? "จ่ายแล้ว," : "ค้างจ่าย,";
+                    if (isPaid) totalPaid++;
+                }
+                csvContent += `${totalPaid * fee}\n`;
+            }
+
+            // Calculations row
+            csvContent += "\n";
+            csvContent += "สรุปการเงิน,,,\n";
+            
+            let totalPaidWeeks = Object.values(payments).filter(Boolean).length;
+            csvContent += `ยอดเงินรวมทั้งหมด,,${totalPaidWeeks * fee} บาท\n`;
+            csvContent += `หักค่าใช้จ่าย,,${Number(document.getElementById('expenses').value) || 0} บาท\n`;
+            csvContent += `คงเหลือคงคลัง,,${(totalPaidWeeks * fee) - (Number(document.getElementById('expenses').value) || 0)} บาท\n`;
+
+            // Download Link Creation
+            let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            let url = URL.createObjectURL(blob);
+            let link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `รายงานเงินห้อง_สัปดาห์_1_ถึง_10.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Switch Mode for Content Generation
+        function switchAiMode(mode) {
+            aiMode = mode;
+            document.getElementById('modeTemplateBtn').className = mode === 'template' 
+                ? 'px-3 py-1 text-xs font-semibold rounded-md bg-purple-600 text-white transition-all' 
+                : 'px-3 py-1 text-xs font-semibold rounded-md text-purple-800 hover:bg-purple-200 transition-all';
+            
+            document.getElementById('modeGeminiBtn').className = mode === 'gemini' 
+                ? 'px-3 py-1 text-xs font-semibold rounded-md bg-purple-600 text-white transition-all' 
+                : 'px-3 py-1 text-xs font-semibold rounded-md text-purple-800 hover:bg-purple-200 transition-all';
+
+            if (mode === 'gemini') {
+                document.getElementById('apiConfigBox').classList.remove('hidden');
+            } else {
+                document.getElementById('apiConfigBox').classList.add('hidden');
+            }
+        }
+
+        // Generate Report Message
+        function generateReport() {
+            const fee = Number(document.getElementById('feePerWeek').value) || 0;
+            const expenses = Number(document.getElementById('expenses').value) || 0;
+            let totalPaidWeeks = Object.values(payments).filter(Boolean).length;
+            const totalCollected = totalPaidWeeks * fee;
+            const remaining = totalCollected - expenses;
+
+            // Generate list of unpaid students
+            let unpaidList = [];
+            // Let's find unpaid students for the current week (let's assume last active week that has any payment)
+            let activeWeek = 1;
+            for(let w=10; w>=1; w--) {
+                let hasPayment = false;
+                for(let s=1; s<=34; s++) {
+                    if (payments[`${s}-${w}`]) { hasPayment = true; break; }
+                }
+                if (hasPayment) { activeWeek = w; break; }
+            }
+
+            for(let s=1; s<=34; s++) {
+                if(!payments[`${s}-${activeWeek}`]) {
+                    unpaidList.push(`เลขที่ ${s}`);
+                }
+            }
+
+            const rawPrompt = `สรุปยอดเงินห้องสัปดาห์ที่ ${activeWeek}:
+- ค่าส่วนกลางสัปดาห์ละ: ${fee} บาท
+- ยอดเก็บรวมขณะนี้: ${totalCollected} บาท
+- ค่าใช้จ่าย: ${expenses} บาท
+- คงเหลือคงคลัง: ${remaining} บาท
+- นักเรียนที่ยังไม่ชำระในสัปดาห์ที่ ${activeWeek}: ${unpaidList.length > 0 ? unpaidList.join(', ') : 'จ่ายครบทุกคนแล้ว!'}`;
+
+            if (aiMode === 'template') {
+                // Show standard beautiful template
+                let templateText = `📢 📋 รายงานสรุปบัญชีกองทุนเงินห้องพักประจำสัปดาห์\n`;
+                templateText += `---------------------------------------\n`;
+                templateText += `💰 ค่าส่วนกลาง: สัปดาห์ละ ฿${fee}\n`;
+                templateText += `📥 ยอดจัดเก็บสะสมทั้งหมด: ฿${totalCollected.toLocaleString()}\n`;
+                templateText += `💸 รายจ่ายสะสมแล้ว: ฿${expenses.toLocaleString()}\n`;
+                templateText += `🏦 คงเหลือสุทธิในบัญชี: ฿${remaining.toLocaleString()}\n`;
+                templateText += `---------------------------------------\n`;
+                templateText += `📌 ข้อมูล ณ ปัจจุบัน (สัปดาห์ที่ ${activeWeek})\n`;
+                if(unpaidList.length > 0) {
+                    templateText += `❌ เพื่อนๆ ที่ค้างจ่ายสัปดาห์ที่ ${activeWeek}: ${unpaidList.join(', ')}\n`;
+                    templateText += `🥺 รบกวนเพื่อน ๆ ที่ยังค้างชำระ ทยอยชำระให้เหรัญญิกด้วยน้า ขอบคุณครับ/ค่ะ!`;
+                } else {
+                    templateText += `🎉 ดีใจมาก! เพื่อน ๆ ทุกคนชำระเงินครบหมดแล้วในสัปดาห์นี้ น่ารักฝุดๆ 💖`;
+                }
+
+                showGeneratedMessage(templateText);
+            } else {
+                // Call actual Gemini API
+                callGeminiAPI(`กรุณาสร้างข้อความส่งเข้า Line กลุ่มห้องเรียน เพื่อรายงานสรุปยอดเงินห้อง โดยแต่งให้ดูน่ารัก มีอิโมจิขอบคุณเพื่อนๆ มีข้อมูลคือ:\n${rawPrompt}`);
+            }
+        }
+
+        // Generate Reminder Message
+        function generateReminder() {
+            const fee = Number(document.getElementById('feePerWeek').value) || 0;
+            const tone = document.getElementById('reminderTone').value;
+            
+            // Templates for instant mode
+            const templates = {
+                polite: `สวัสดีเพื่อน ๆ ทุกคนนะครับ/ค่ะ 🙏 \n\nขออนุญาตแจ้งยอดเงินกองทุนห้องสัปดาห์นี้นะคะ เพื่อใช้สำหรับเป็นค่าชีทชีตกิจกรรมและอุปกรณ์ในห้อง เรียนรบกวนสัปดาห์ละ ฿${fee} บาทน้า\n\nเพื่อน ๆ คนไหนที่ยังไม่ได้ชำระ สามารถโอนหรือฝากเงินสดไว้ที่เหรัญญิกได้เลยครับ ขอบพระคุณมากครับที่ช่วยเหลือห้องเรา 💖`,
+                cute: `ฮัลโหลลล เจ้ามนุษย์เพื่อนในห้องทุกคนนน~ 🧸💖\n\nได้เวลาสละเศษเหรียญ ฿${fee} บาท มาหล่อเลี้ยงกองทุนห้องน้อย ๆ ของพวกเราแล้ววว สัปดาห์นี้ใครยังไม่ติ๊กส่งยอด อย่าลืมวิ่งมาจ่ายเหรัญญิกคนสวย/คนหล่อนะค้าบ อ้อนๆ น้า เงินกองกลางจะนำไปใช้เพื่อความสะดวกของพวกเราเองจ้า จุ๊บๆ 😘`,
+                funny: `ประกาศด่วนจากหน่วยปราบหนี้แห่งชาติ! 🚨🚨\n\nใครเห็นข้อความนี้ แสดงว่าคุณติดค้างเงินกองกลาง ฿${fee} บาทถ้วน! เพื่อความปลอดภัยในชีวิตและวิชาเรียนของท่าน โปรดนำเงินมามอบให้เหรัญญิกแต่โดยดี มิเช่นนั้นทางเราจะส่งกระแสจิตสะกดจิตให้แอบฝันถึงเหรัญญิกคืนนี้! 👻💰 (จ่ายเหอะนะ อยากปิดยอดแย่แล้วว)`,
+                strict: `⚠️ ประกาศทวงยอดเงินกองทุนประจำสัปดาห์\n\nขอแจ้งเพื่อน ๆ สมาชิกทุกคนในห้องเพื่อรักษาสิทธิ์ส่วนรวม ปัจจุบันยังมีเพื่อน ๆ ค้างชำระเงิน ฿${fee} บาท ยอดนี้จำเป็นต้องนำไปซื้ออุปกรณ์ส่วนกลางทันที\n\nขอความร่วมมือชำระเงินให้ตรงเวลา "ภายในวันนี้" เพื่อป้องกันยอดค้างสะสมจนกลายเป็นหนี้สินก้อนโต ขอบคุณค่ะ.`
+            };
+
+            if (aiMode === 'template') {
+                showGeneratedMessage(templates[tone]);
+            } else {
+                let toneDesc = "";
+                if(tone === 'polite') toneDesc = "สุภาพและเป็นทางการ";
+                if(tone === 'cute') toneDesc = "น่ารัก อ้อนๆ เป็นมิตร";
+                if(tone === 'funny') toneDesc = "ตลกขำขัน มีมุกเสี่ยว";
+                if(tone === 'strict') toneDesc = "ดุดัน ขึงขัง แบบนักทวงหนี้";
+
+                callGeminiAPI(`ช่วยเขียนข้อความแจ้งทวงเงินกองกลางของห้อง สัปดาห์ละ ${fee} บาท ขอโทนอารมณ์แบบ "${toneDesc}" สั้นกระชับน่าสนใจ ไม่เกิน 4 บรรทัด มีอิโมจิน่ารักๆ เหมาะสำหรับส่งเข้า Line`);
+            }
+        }
+
+        // Show generated result
+        function showGeneratedMessage(text) {
+            document.getElementById('aiResponseBox').classList.remove('hidden');
+            document.getElementById('loadingIndicator').classList.add('hidden');
+            document.getElementById('messageTextContainer').classList.remove('hidden');
+            document.getElementById('messageText').innerText = text;
+        }
+
+        // Copy Clipboard Helper
+        function copyMessage() {
+            const text = document.getElementById('messageText').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("📋 คัดลอกข้อความสำเร็จแล้ว! นำไปวางในแอป Line ได้เลย");
+            });
+        }
+
+        // Call Google Gemini API
+        async function callGeminiAPI(promptText) {
+            const key = document.getElementById('apiKey').value.trim();
+            if (!key) {
+                alert("❌ กรุณากรอก Gemini API Key ในช่องตั้งค่าก่อนใช้งานโหมด AI นะครับ!");
+                return;
+            }
+            
+            // Save Key in device
+            localStorage.setItem('classFundGeminiKey', key);
+
+            // Display loading
+            document.getElementById('aiResponseBox').classList.remove('hidden');
+            document.getElementById('loadingIndicator').classList.remove('hidden');
+            document.getElementById('messageTextContainer').classList.add('hidden');
+
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: promptText }] }],
+                        systemInstruction: {
+                            parts: [{ text: "คุณคือเหรัญญิกห้องเรียนที่น่ารัก ขยันขันแข็ง ดูแลเพื่อนอย่างอบอุ่น ตอบกลับเป็นภาษาไทยที่สุภาพเป็นธรรมชาติเสมอ" }]
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                if (data.candidates && data.candidates[0].content) {
+                    const reply = data.candidates[0].content.parts[0].text;
+                    showGeneratedMessage(reply);
+                } else {
+                    showGeneratedMessage("⚠️ ไม่สามารถรับข้อความจาก AI ได้ โปรดตรวจสอบว่า API Key ของคุณถูกต้องและใช้งานได้อยู่");
+                }
+            } catch (err) {
+                console.error(err);
+                showGeneratedMessage("❌ เกิดข้อผิดพลาดในขณะคุยกับ AI โปรดตรวจสอบสัญญาณอินเทอร์เน็ตหรือความถูกต้องของ API Key");
+            }
+        }
+    </script>
+</body>
+</html>
